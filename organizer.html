@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Organizer | MTG Arena Weekly Tournament</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/organizer.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<header class="site">
+  <p class="kicker">DAC NEW &middot; MTG Arena Weekly Tournament</p>
+  <h1>Organizer</h1>
+</header>
+<main id="main" tabindex="-1">
+  <div id="signin"></div>
+  <div id="app" hidden>
+    <div class="tabs" role="tablist" aria-label="Organizer sections">
+      <button role="tab" id="t-week" aria-controls="p-week" aria-selected="true">This week</button>
+      <button role="tab" id="t-players" aria-controls="p-players" aria-selected="false" tabindex="-1">Players</button>
+      <button role="tab" id="t-settings" aria-controls="p-settings" aria-selected="false" tabindex="-1">Settings</button>
+    </div>
+    <section role="tabpanel" id="p-week" aria-labelledby="t-week"></section>
+    <section role="tabpanel" id="p-players" aria-labelledby="t-players" hidden></section>
+    <section role="tabpanel" id="p-settings" aria-labelledby="t-settings" hidden></section>
+  </div>
+</main>
+<footer class="site"><p><a href="./">Back to the player page</a></p></footer>
+</body>
+</html>
