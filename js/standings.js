@@ -1,12 +1,13 @@
 // Standings with the standard Magic tiebreakers:
 // match points (win 3, draw 1), then opponents' match-win % (OMW),
 // then game-win % (GW), then opponents' game-win % (OGW).
-// Percentages have a 33% floor. Byes count as a 2-0 win but are
-// ignored when working out opponents' percentages.
+// Percentages have a 33% floor. In Swiss, a bye counts as a 2-0 win but is
+// ignored when working out opponents' percentages. In round robin everyone
+// sits out the same number of rounds, so byes don't count at all.
 
 const FLOOR = 1 / 3;
 
-export function computeStandings(entries, matches) {
+export function computeStandings(entries, matches, { byeIsWin = true } = {}) {
   const st = new Map();
   for (const e of entries) {
     st.set(e.player_id, {
@@ -21,6 +22,7 @@ export function computeStandings(entries, matches) {
     const a = st.get(m.player1_id);
     if (!a) continue;
     if (!m.player2_id) {
+      if (!byeIsWin) continue;
       a.points += 3; a.matches += 1; a.wins += 1; a.byes += 1;
       a.gamePoints += 6; a.games += 2;
       continue;

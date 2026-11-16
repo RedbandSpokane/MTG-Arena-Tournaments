@@ -2,8 +2,18 @@
 
 A free website for the Disability Action Center Northeast Washington's weekly
 Magic: The Gathering Arena tournament. Players enter when they're free, the
-organizer pairs Swiss rounds, and the site suggests match times both players
+organizer posts the matches, and the site suggests match times both players
 can make.
+
+Each week can be one of two styles, picked when the week is created (and
+changeable until matches are posted):
+
+- **Round robin:** everyone plays everyone once. The whole week's schedule is
+  posted at once so players can play their matches in any order. Best for up
+  to about 6 players. With an odd number, each player sits out one round,
+  which doesn't count as a win or a loss.
+- **Swiss:** rounds are posted one at a time, pairing players with the same
+  record. Best once more people join.
 
 - **Player page:** `index.html`
 - **Organizer page:** `organizer.html` (needs the organizer passphrase)
@@ -16,7 +26,10 @@ can make.
    the number of rounds, the Saturday group session hours, and who's playing.
 3. **Players:** sign in with their name and PIN, tap the hours they're free,
    and save.
-4. **Organizer:** once availability is in, tap *Pair round 1*. Round 1 is
+4. **Organizer, round robin weeks:** once availability is in, tap *Make the
+   schedule*, check it, and post. Players see every opponent right away. Skip
+   to step 5, then mark the tournament finished when every match is in.
+   **Organizer, Swiss weeks:** once availability is in, tap *Pair round 1*. Round 1 is
    random, but the site picks the shuffle where opponents share the most free
    hours. Check the preview, set a play-by deadline, and post it.
 5. **Players:** see their opponent and up to 5 suggested times they're both
@@ -50,6 +63,7 @@ Magic events.
 | `js/app.js` | Player page |
 | `js/organizer.js` | Organizer page |
 | `js/swiss.js` | Swiss pairing |
+| `js/roundrobin.js` | Round robin schedule |
 | `js/schedule.js` | Suggested match times |
 | `js/standings.js` | Standings and tiebreakers |
 | `js/slots.js` | Day and time labels |

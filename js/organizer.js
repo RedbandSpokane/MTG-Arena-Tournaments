@@ -3,9 +3,12 @@ import { h, clear, say, busy } from './dom.js';
 import {
   DAYS, HOURS, slotOf, dayLabel, dayName, hourLabel, slotLabel, nextMondayIso, weekRangeLabel,
 } from './slots.js';
-import { setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings } from './common.js';
+import {
+  setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings, isRoundRobin,
+} from './common.js';
 import { computeStandings } from './standings.js';
 import { pairRound, overlapHours, suggestedRounds } from './swiss.js';
+import { roundRobinSchedule, roundRobinRoundCount } from './roundrobin.js';
 
 const KEY = 'mtg-organizer';
 const $ = (id) => document.getElementById(id);
@@ -112,7 +115,7 @@ function renderWeek() {
   pWeek.append(pick);
 
   if (!state.data?.tournament) return;
-  pWeek.append(entriesCard(), roundsCard());
+  pWeek.append(entriesCard(), isRoundRobin(state.data) ? roundRobinCard() : roundsCard());
   const pairings = h('div', {});
   renderPairings(pairings, state.data, { adminControls });
   pWeek.append(pairings);
@@ -131,7 +134,13 @@ function newWeekForm() {
     if (start.value) name.value = `Week of ${weekRangeLabel(start.value).split(' to ')[0]}`;
     fillDays();
   });
-  const rounds = h('input', { id: 'nw-rounds', type: 'number', min: '1', max: '8', value: String(Math.max(1, suggestedRounds(active.length || 8))) });
+  const lastFormat = state.tournaments[0]?.format || 'round_robin';
+  const format = h('select', { id: 'nw-format' },
+    h('option', { value: 'round_robin', text: 'Round robin: everyone plays everyone' }),
+    h('option', { value: 'swiss', text: 'Swiss: play people with the same record' }));
+  format.value = lastFormat;
+  const rounds = h('input', { id: 'nw-rounds', type: 'number', min: '1', max: '20', 'aria-describedby': 'nw-rounds-note' });
+  const roundsNote = h('p', { id: 'nw-rounds-note', class: 'small muted', style: 'margin:4px 0 0' });
   const gDay = h('select', { id: 'nw-gday' });
   const fillDays = () => {
     const keep = gDay.value;
@@ -151,12 +160,28 @@ function newWeekForm() {
   const gEnd = hourSel('nw-gend', 17, 9, 23);
   const boxes = active.map((p) => h('label', { style: 'font-weight:400;display:flex;gap:10px;align-items:center;min-height:44px;margin:0' },
     h('input', { type: 'checkbox', value: p.id, checked: true, style: 'width:22px;height:22px' }), p.name));
+  const checkedCount = () => boxes.filter((l) => l.querySelector('input').checked).length;
+  const updateRounds = () => {
+    const n = checkedCount();
+    if (format.value === 'round_robin') {
+      rounds.value = String(Math.max(1, roundRobinRoundCount(n)));
+      rounds.disabled = true;
+      roundsNote.textContent = `Round robin sets this for you: ${n} player${n === 1 ? '' : 's'} means ${roundRobinRoundCount(n)} round${roundRobinRoundCount(n) === 1 ? '' : 's'}${n % 2 && n > 1 ? ', and each player sits out once' : ''}. Round robin works best for up to about 6 players.`;
+    } else {
+      rounds.disabled = false;
+      rounds.value = String(Math.max(1, suggestedRounds(n || 8)));
+      roundsNote.textContent = '3 rounds works for up to 8 players, 4 rounds for up to 16.';
+    }
+  };
+  format.addEventListener('change', updateRounds);
+  boxes.forEach((l) => l.querySelector('input').addEventListener('change', updateRounds));
+  updateRounds();
   const btn = h('button', { type: 'submit', text: 'Create this week' });
   const form = h('form', {},
     h('label', { for: 'nw-name', text: 'Name' }), name,
     h('label', { for: 'nw-start', text: 'First day of the week' }), start,
-    h('label', { for: 'nw-rounds', text: 'Number of rounds' }), rounds,
-    h('p', { class: 'small muted', style: 'margin:4px 0 0', text: '3 rounds works for up to 8 players, 4 rounds for up to 16.' }),
+    h('label', { for: 'nw-format', text: 'Tournament style' }), format,
+    h('label', { for: 'nw-rounds', text: 'Number of rounds' }), rounds, roundsNote,
     h('label', { for: 'nw-gday', text: 'Group session day' }), gDay,
     h('div', { class: 'row' },
       h('div', { class: 'grow' }, h('label', { for: 'nw-gstart', text: 'Starts' }), gStart),
@@ -175,6 +200,7 @@ function newWeekForm() {
     try {
       const res = await busy(btn, status, () => A('admin_create_tournament', {
         p_name: name.value, p_week_start: start.value, p_num_rounds: Number(rounds.value) || 3,
+        p_format: format.value,
         p_group_day: gDay.value === '' ? null : Number(gDay.value),
         p_group_start_hour: gDay.value === '' ? null : Number(gStart.value),
         p_group_end_hour: gDay.value === '' ? null : Number(gEnd.value),
@@ -308,6 +334,146 @@ function roundsCard() {
   }
   card.append(status);
   return card;
+}
+
+// ----- round robin -----
+
+function roundRobinCard() {
+  const data = state.data;
+  const t = data.tournament;
+  const ws = t.week_start;
+  const card = h('div', { class: 'card' }, h('h2', { text: 'Matches (round robin)' }));
+  const status = statusEl();
+  status.id = 'rounds-status';
+  const active = data.entries.filter((e) => !e.dropped);
+  const missing = active.filter((e) => !e.has_availability);
+  const n = active.length;
+
+  if (!data.rounds.length) {
+    const rc = roundRobinRoundCount(n);
+    card.append(h('p', {}, `${n} players means ${rc} round${rc === 1 ? '' : 's'} and ${(n * (n - 1)) / 2} matches. `,
+      'The whole schedule is posted at once, so players can play their matches in any order during the week.'));
+    if (n > 6) {
+      card.append(h('p', { class: 'status', 'data-kind': 'info', text: `With ${n} players, each person has ${n - 1} matches this week. If that’s too many, switch this week to Swiss in the settings below.` }));
+    }
+    if (missing.length) {
+      card.append(h('p', { class: 'status', 'data-kind': 'info', text: `Still waiting on availability from: ${missing.map((e) => e.name).join(', ')}.` }));
+    }
+    if (t.status !== 'open') {
+      card.append(h('p', { text: 'This tournament is finished.' }));
+    } else if (n < 2) {
+      card.append(h('p', { text: 'You need at least 2 players to make a schedule.' }));
+    } else {
+      const make = h('button', { type: 'button', text: state.preview?.rr ? 'Shuffle the schedule again' : 'Make the schedule' });
+      make.addEventListener('click', async () => {
+        try {
+          await busy(make, status, async () => {
+            const av = await A('admin_get_availability', { p_tid: state.tid });
+            state.preview = { rr: true, rounds: roundRobinSchedule(active.map((e) => e.player_id)), availability: av.availability };
+          });
+          renderWeek();
+          $('preview-heading')?.focus();
+        } catch { /* shown */ }
+      });
+      card.append(h('div', { class: 'row', style: 'margin-top:12px' }, make));
+      if (state.preview?.rr) card.append(rrPreviewBlock(status));
+    }
+  } else {
+    const done = data.matches.filter((m) => m.player2_id && m.p1_wins != null).length;
+    const total = data.matches.filter((m) => m.player2_id).length;
+    card.append(h('p', {}, h('strong', { text: `${done} of ${total}` }), ' matches finished.'));
+    if (done === total && t.status === 'open') {
+      card.append(h('p', { text: 'Every match is in. Mark the tournament finished in the settings below.' }));
+    }
+    const first = data.rounds[0];
+    const dl = deadlineSelect('rr-deadline', first.deadline_slot, ws);
+    const saveDl = h('button', { type: 'button', class: 'secondary', text: 'Save deadline' });
+    saveDl.addEventListener('click', async () => {
+      try {
+        await busy(saveDl, status, async () => {
+          for (const r of data.rounds) {
+            await A('admin_set_round_deadline', { p_round: r.id, p_deadline_slot: dl.value === '' ? null : Number(dl.value) });
+          }
+        });
+        await reload();
+        say($('rounds-status'), 'Deadline saved for every match.', 'ok');
+      } catch { /* shown */ }
+    });
+    const del = h('button', { type: 'button', class: 'danger', text: 'Delete the whole schedule' });
+    del.addEventListener('click', async () => {
+      if (!confirm('Delete every match this week? Scheduled times and results will be erased.')) return;
+      try {
+        await busy(del, status, async () => {
+          for (const r of [...data.rounds].sort((a, b) => b.number - a.number)) {
+            await A('admin_delete_round', { p_round: r.id });
+          }
+        });
+        state.preview = null;
+        await reload();
+        say($('rounds-status'), 'Schedule deleted. You can make a new one.', 'ok');
+      } catch { /* shown */ }
+    });
+    card.append(h('details', { style: 'margin-top:12px' },
+      h('summary', { text: 'Change the schedule' }),
+      h('label', { for: 'rr-deadline', text: 'Play all matches by' }),
+      h('div', { class: 'row' }, h('div', { class: 'grow' }, dl), saveDl),
+      h('p', { class: 'small muted', text: 'Adding or dropping a player after the schedule is posted means deleting it and making a new one. Results already entered would be lost, so do it early.' }),
+      del));
+  }
+  card.append(status);
+  return card;
+}
+
+function rrPreviewBlock(status) {
+  const p = state.preview;
+  const names = namesById(state.data);
+  const ws = state.data.tournament.week_start;
+  const name = (id) => names.get(id)?.name ?? 'Unknown';
+  const wrap = h('div', { style: 'margin-top:16px' },
+    h('h3', { id: 'preview-heading', tabindex: '-1', text: 'Proposed schedule' }),
+    h('p', { class: 'small muted', text: 'Hours in common is how many free hours the two players share this week. Nothing is posted until you tap Post.' }));
+  p.rounds.forEach((r, i) => {
+    const list = h('ul', { style: 'margin:4px 0 12px' });
+    for (const pair of r.pairs) {
+      const o = overlapHours(p.availability, pair.p1, pair.p2);
+      list.append(h('li', {}, h('strong', { text: `${name(pair.p1)} vs ${name(pair.p2)}` }), ' ',
+        h('span', { class: 'small', style: o ? '' : 'color:var(--err);font-weight:700', text: o ? `(${o} hours in common)` : '(no hours in common)' })));
+    }
+    if (r.bye) list.append(h('li', { text: `${name(r.bye)} sits out` }));
+    wrap.append(h('p', { style: 'margin:8px 0 0;font-weight:700', text: `Round ${i + 1}` }), list);
+  });
+  const dl = deadlineSelect('new-deadline', slotOf(6, 23), ws);
+  const post = h('button', { type: 'button', text: 'Post the schedule' });
+  const cancel = h('button', { type: 'button', class: 'secondary', text: 'Cancel' });
+  cancel.addEventListener('click', () => { state.preview = null; renderWeek(); });
+  post.addEventListener('click', async () => {
+    const t = state.data.tournament;
+    try {
+      await busy(post, status, async () => {
+        for (const [i, r] of p.rounds.entries()) {
+          await A('admin_create_round', {
+            p_tid: state.tid, p_number: i + 1,
+            p_deadline_slot: dl.value === '' ? null : Number(dl.value),
+            p_pairings: [...r.pairs, ...(r.bye ? [{ p1: r.bye, p2: null }] : [])],
+          });
+        }
+        await A('admin_update_tournament', {
+          p_tid: t.id, p_name: t.name, p_num_rounds: p.rounds.length, p_status: t.status,
+          p_group_day: t.group_day, p_group_start_hour: t.group_start_hour, p_group_end_hour: t.group_end_hour,
+          p_format: t.format,
+        });
+      });
+      state.preview = null;
+      await loadTournaments(state.tid);
+      renderAll();
+      say($('rounds-status'), 'The schedule is posted. Players can now see all their opponents and pick times.', 'ok');
+    } catch {
+      try { await reload(); } catch { /* ignore */ }
+    }
+  });
+  wrap.append(h('label', { for: 'new-deadline', text: 'Play all matches by' }), dl,
+    h('div', { class: 'row', style: 'margin-top:12px' }, post, cancel));
+  return wrap;
 }
 
 function deadlineSelect(id, value, ws) {
@@ -449,7 +615,26 @@ function tournamentSettingsCard() {
   const t = state.data.tournament;
   const status = statusEl();
   const name = h('input', { id: 'ts-name', type: 'text', value: t.name });
-  const rounds = h('input', { id: 'ts-rounds', type: 'number', min: String(Math.max(1, state.data.rounds.length)), max: '8', value: String(t.num_rounds) });
+  const hasRounds = state.data.rounds.length > 0;
+  const format = h('select', { id: 'ts-format', disabled: hasRounds, 'aria-describedby': 'ts-format-note' },
+    h('option', { value: 'round_robin', text: 'Round robin: everyone plays everyone' }),
+    h('option', { value: 'swiss', text: 'Swiss: play people with the same record' }));
+  format.value = t.format || 'swiss';
+  const formatNote = h('p', { id: 'ts-format-note', class: 'small muted', style: 'margin:4px 0 0',
+    text: hasRounds ? 'To change the style, delete the posted rounds first.' : 'You can switch styles until matches are posted.' });
+  const rounds = h('input', { id: 'ts-rounds', type: 'number', min: String(Math.max(1, state.data.rounds.length)), max: '20', value: String(t.num_rounds) });
+  const syncRounds = () => {
+    const n = state.data.entries.filter((e) => !e.dropped).length;
+    if (format.value === 'round_robin') {
+      rounds.disabled = true;
+      if (!hasRounds) rounds.value = String(Math.max(1, roundRobinRoundCount(n)));
+    } else {
+      rounds.disabled = false;
+      if (!hasRounds && t.format !== 'swiss') rounds.value = String(Math.max(1, suggestedRounds(n)));
+    }
+  };
+  format.addEventListener('change', syncRounds);
+  syncRounds();
   const gDay = h('select', { id: 'ts-gday' }, h('option', { value: '', text: 'No group session' }),
     Array.from({ length: DAYS }, (_, d) => h('option', { value: String(d), text: dayLabel(t.week_start, d) })));
   gDay.value = t.group_day == null ? '' : String(t.group_day);
@@ -465,6 +650,7 @@ function tournamentSettingsCard() {
   const finish = h('button', { type: 'button', text: t.status === 'complete' ? 'Reopen tournament' : 'Mark tournament finished' });
   const send = (extra = {}) => A('admin_update_tournament', {
     p_tid: t.id, p_name: name.value, p_num_rounds: Number(rounds.value) || t.num_rounds, p_status: t.status,
+    p_format: format.value,
     p_group_day: gDay.value === '' ? null : Number(gDay.value),
     p_group_start_hour: gDay.value === '' ? null : Number(gStart.value),
     p_group_end_hour: gDay.value === '' ? null : Number(gEnd.value),
@@ -473,6 +659,7 @@ function tournamentSettingsCard() {
   const form = h('form', { class: 'card' },
     h('h2', { text: 'Tournament settings' }),
     h('label', { for: 'ts-name', text: 'Name' }), name,
+    h('label', { for: 'ts-format', text: 'Tournament style' }), format, formatNote,
     h('label', { for: 'ts-rounds', text: 'Number of rounds' }), rounds,
     h('label', { for: 'ts-gday', text: 'Group session day' }), gDay,
     h('div', { class: 'row' },
@@ -488,6 +675,7 @@ function tournamentSettingsCard() {
     }
     try {
       await busy(save, status, () => send(), { done: 'Saved.' });
+      state.preview = null;
       await loadTournaments(state.tid); renderAll();
     } catch { /* shown */ }
   });

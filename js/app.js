@@ -5,7 +5,7 @@ import {
 } from './slots.js';
 import { suggestTimes, sharedSlots, inGroupSession, groupSessionSlots } from './schedule.js';
 import {
-  setupTabs, weekOptionLabel, namesById, resultText, renderPairings, renderStandings,
+  setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings, isRoundRobin, formatHelp,
 } from './common.js';
 
 const SESSION_KEY = 'mtg-player';
@@ -87,6 +87,11 @@ async function refresh() {
 // ---------- rendering ----------
 
 function renderAll() {
+  const help = document.getElementById('format-help');
+  if (help && state.data?.tournament) {
+    const [lead, ...rest] = formatHelp(state.data.tournament.format).split(': ');
+    help.replaceChildren(h('strong', { text: `${lead[0].toUpperCase()}${lead.slice(1)}.` }), ` ${rest.join(': ').replace(/^./, (c) => c.toUpperCase())}`);
+  }
   renderMe();
   if (state.data?.tournament) {
     renderPairings(panelPairings, state.data);
@@ -274,11 +279,13 @@ function renderMatches() {
   const card = h('div', { class: 'card' }, h('h2', { text: 'Your matches' }));
   const mine = data.matches.filter((m) => m.player1_id === state.me.id || m.player2_id === state.me.id);
   if (!data.rounds.length) {
-    card.append(h('p', { text: 'Pairings aren’t posted yet. Enter your availability below. Once the organizer pairs round 1, your opponent and suggested match times will show up here.' }));
+    card.append(h('p', { text: isRoundRobin(data)
+      ? 'This week’s matches aren’t posted yet. Enter your availability below. Once the organizer posts the round robin, you’ll see every opponent and suggested match times here.'
+      : 'Pairings aren’t posted yet. Enter your availability below. Once the organizer pairs round 1, your opponent and suggested match times will show up here.' }));
   } else if (!mine.length) {
     card.append(h('p', { text: 'You aren’t in a posted round yet. If you think that’s a mistake, contact the organizer.' }));
   }
-  const rounds = [...data.rounds].sort((a, b) => b.number - a.number);
+  const rounds = [...data.rounds].sort((a, b) => (isRoundRobin(data) ? a.number - b.number : b.number - a.number));
   for (const r of rounds) {
     const m = mine.find((x) => x.round_id === r.id);
     if (m) card.append(renderMyMatch(m, r, names));
@@ -298,7 +305,9 @@ function renderMyMatch(m, round, names) {
   box.append(h('h3', {}, `Round ${round.number}: `, opp ? `vs ${opp.name}` : 'Bye'));
 
   if (!oppId) {
-    box.append(h('p', { text: 'You have a bye this round. It counts as a 2-0 win, so there’s nothing to play. Enjoy the break!' }));
+    box.append(h('p', { text: isRoundRobin(state.data)
+      ? 'You sit out this round, so there’s nothing to play. Everyone sits out once when there’s an odd number of players.'
+      : 'You have a bye this round. It counts as a 2-0 win, so there’s nothing to play. Enjoy the break!' }));
     return box;
   }
 

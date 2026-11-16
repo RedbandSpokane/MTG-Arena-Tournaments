@@ -30,16 +30,35 @@ export function setupTabs(onChange) {
 }
 
 export function weekOptionLabel(t) {
-  return `${t.name} (${weekRangeLabel(t.week_start)})${t.status === 'complete' ? ', finished' : ''}`;
+  const style = t.format === 'round_robin' ? 'round robin' : 'Swiss';
+  return `${t.name} (${weekRangeLabel(t.week_start)}), ${style}${t.status === 'complete' ? ', finished' : ''}`;
 }
 
 export function namesById(data) {
   return new Map(data.entries.map((e) => [e.player_id, e]));
 }
 
-export function resultText(m, names) {
+export const isRoundRobin = (data) => data?.tournament?.format === 'round_robin';
+
+export function byeNote(data) {
+  return isRoundRobin(data)
+    ? 'sits out this round'
+    : 'has a bye (counts as a 2-0 win)';
+}
+
+export function formatName(format) {
+  return format === 'round_robin' ? 'Round robin' : 'Swiss';
+}
+
+export function formatHelp(format) {
+  return format === 'round_robin'
+    ? 'Round robin: you play every other player once. All of this week’s matches are posted at the start, so you can schedule them in any order. The best record at the end of the week wins.'
+    : 'Swiss style: nobody gets knocked out. Each round you play someone with the same record as you, and the best record at the end of the week wins.';
+}
+
+export function resultText(m, names, data) {
   const n1 = names.get(m.player1_id)?.name ?? 'Unknown';
-  if (!m.player2_id) return `${n1} has a bye (counts as a 2-0 win)`;
+  if (!m.player2_id) return `${n1} ${byeNote(data)}`;
   const n2 = names.get(m.player2_id)?.name ?? 'Unknown';
   if (m.p1_wins == null) return null;
   const d = m.draws ? `-${m.draws}` : '';
@@ -65,20 +84,23 @@ export function renderPairings(container, data, { adminControls } = {}) {
   const card = h('div', { class: 'card' });
   container.append(card);
   card.append(h('h2', { text: 'Pairings and schedule' }));
+  card.append(h('p', { class: 'small muted', text: formatHelp(data.tournament.format) }));
 
   if (data.rounds.length === 0) {
     const active = data.entries.filter((e) => !e.dropped);
     const ready = active.filter((e) => e.has_availability);
     const missing = active.filter((e) => !e.has_availability);
     card.append(
-      h('p', { text: 'Round 1 hasn’t been paired yet. The organizer pairs it once everyone has entered their availability.' }),
+      h('p', { text: isRoundRobin(data)
+        ? 'The match schedule isn’t posted yet. The organizer posts it once everyone has entered their availability.'
+        : 'Round 1 hasn’t been paired yet. The organizer pairs it once everyone has entered their availability.' }),
       h('p', {}, h('strong', { text: `${ready.length} of ${active.length}` }), ' players have entered their times.'),
       missing.length ? h('p', { class: 'muted', text: `Still waiting on: ${missing.map((e) => e.name).join(', ')}` }) : null,
     );
     return;
   }
 
-  for (const r of [...data.rounds].sort((a, b) => b.number - a.number)) {
+  for (const r of [...data.rounds].sort((a, b) => (isRoundRobin(data) ? a.number - b.number : b.number - a.number))) {
     const ms = data.matches.filter((m) => m.round_id === r.id);
     const done = ms.filter((m) => m.p1_wins != null).length;
     card.append(h('h3', { text: `Round ${r.number}` }));
@@ -89,7 +111,7 @@ export function renderPairings(container, data, { adminControls } = {}) {
     for (const m of ms) {
       const n1 = names.get(m.player1_id)?.name ?? 'Unknown';
       const n2 = m.player2_id ? (names.get(m.player2_id)?.name ?? 'Unknown') : null;
-      const res = resultText(m, names);
+      const res = resultText(m, names, data);
       const sched = scheduleText(m, data, names);
       const li = h('li', { class: `match${res ? ' done' : ''}` },
         h('div', { style: 'font-weight:700' }, n2 ? `${n1} vs ${n2}` : `${n1}: bye`),
@@ -105,7 +127,7 @@ export function renderPairings(container, data, { adminControls } = {}) {
 
 export function renderStandings(container, data) {
   clear(container);
-  const rows = computeStandings(data.entries, data.matches);
+  const rows = computeStandings(data.entries, data.matches, { byeIsWin: !isRoundRobin(data) });
   const card = h('div', { class: 'card' });
   container.append(card);
   card.append(h('h2', { text: 'Standings' }));
