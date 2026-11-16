@@ -1,12 +1,13 @@
-import { rpc } from './api.js?v=20261116b';
-import { h, clear, say, busy } from './dom.js?v=20261116b';
+import { rpc } from './api.js?v=20261116c';
+import { h, clear, say, busy } from './dom.js?v=20261116c';
 import {
-  DAYS, HOURS, slotOf, dayLabel, hourLabel, hourRangeLabel, slotLabel, nowSlot,
-} from './slots.js?v=20261116b';
-import { suggestTimes, sharedSlots, inGroupSession, groupSessionSlots } from './schedule.js?v=20261116b';
+  DAYS, dayLabel, hourLabel, slotLabel, nowSlot, gridCells, slotRangeLabel,
+  TIME_ZONES, setViewTimeZone, detectTimeZone, viewTimeZone, zoneAbbr,
+} from './slots.js?v=20261116c';
+import { suggestTimes, sharedSlots, inGroupSession, groupSessionSlots } from './schedule.js?v=20261116c';
 import {
   setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings, isRoundRobin, formatHelp,
-} from './common.js?v=20261116b';
+} from './common.js?v=20261116c';
 
 const SESSION_KEY = 'mtg-player';
 
@@ -204,20 +205,26 @@ function renderAvailability() {
       hasGroup ? h('span', {}, h('span', { class: 'swatch grp' }), 'Saturday group session') : null),
   );
   if (hasGroup) {
+    const g = groupSessionSlots(t);
     card.append(h('p', { class: 'small' },
       h('strong', { text: 'Group session: ' }),
-      `${dayLabel(ws, t.group_day)}, ${hourRangeLabel(t.group_start_hour, t.group_end_hour - t.group_start_hour)}. Mark these hours if you can join.`));
+      `${slotRangeLabel(ws, g[0], g.length)}. Mark these hours if you can join.`));
   }
+  card.append(h('p', { class: 'small muted', text: `Times are shown in ${TIME_ZONES.find((z) => z.id === viewTimeZone())?.label.split(' (')[0] ?? 'your'} time (${zoneAbbr()}). You can change your time zone at the top of the page.` }));
 
+  const cells = gridCells(ws);
   for (let d = 0; d < DAYS; d++) {
-    const daySlots = HOURS.map((hr) => slotOf(d, hr));
+    const dayCells = cells.filter((c) => c.day === d);
+    if (!dayCells.length) continue;
+    const daySlots = dayCells.map((c) => c.slot);
+    const localHour = new Map(dayCells.map((c) => [c.slot, c.hour]));
     const past = daySlots.every((s) => s <= now);
     const buttons = [];
     const fs = h('fieldset', { class: 'day' }, h('legend', {}, dayLabel(ws, d), past ? ' (past)' : ''));
     const setAll = (pred) => {
       for (const s of daySlots) {
         if (s <= now) continue; // past hours stay as they are
-        if (pred(s % 24)) state.myAvail.add(s); else state.myAvail.delete(s);
+        if (pred(localHour.get(s))) state.myAvail.add(s); else state.myAvail.delete(s);
       }
       buttons.forEach((b) => b.setAttribute('aria-pressed', String(state.myAvail.has(Number(b.dataset.slot)))));
       updateSaveHint();
@@ -235,9 +242,9 @@ function renderAvailability() {
         class: `hour${inGroupSession(s, t) ? ' group' : ''}`,
         'aria-pressed': String(state.myAvail.has(s)),
         'data-slot': String(s),
-        'aria-label': `${hourLabel(s % 24)}${inGroupSession(s, t) ? ', group session' : ''}${isPast ? ', already passed' : ''}`,
+        'aria-label': `${hourLabel(localHour.get(s))}${inGroupSession(s, t) ? ', group session' : ''}${isPast ? ', already passed' : ''}`,
         disabled: isPast,
-        text: hourLabel(s % 24),
+        text: hourLabel(localHour.get(s)),
       });
       b.addEventListener('click', () => {
         if (state.myAvail.has(s)) state.myAvail.delete(s); else state.myAvail.add(s);
@@ -399,13 +406,9 @@ function renderMyMatch(m, round, names) {
 
     // Any time: shared hours first, then the rest of the week.
     const shared = new Set(sharedSlots([...state.savedAvail], oppSlots, { now, deadline }));
-    const options = [];
-    for (let d = 0; d < DAYS; d++) {
-      for (const hr of HOURS) {
-        const s = slotOf(d, hr);
-        if (s > now && s < Math.min(deadline, 168)) options.push(s);
-      }
-    }
+    const options = gridCells(ws).map((c) => c.slot)
+      .filter((s) => s > now && s < Math.min(deadline, 168))
+      .sort((a, b) => a - b);
     if (options.length) {
       const id = `other-${m.id}`;
       const sel = h('select', { id },
@@ -489,6 +492,21 @@ function resultForm(m, iAmP1, opp, status) {
 const showTab = setupTabs((id) => {
   if (id !== 't-me' && state.data?.tournament) renderAll();
 });
+
+const TZ_KEY = 'mtg-time-zone';
+(function setupTimeZone() {
+  let saved = null;
+  try { saved = localStorage.getItem(TZ_KEY); } catch { /* ignore */ }
+  setViewTimeZone(saved || detectTimeZone());
+  const sel = $('tz');
+  for (const z of TIME_ZONES) sel.append(h('option', { value: z.id, text: z.label }));
+  sel.value = viewTimeZone();
+  sel.addEventListener('change', () => {
+    setViewTimeZone(sel.value);
+    try { localStorage.setItem(TZ_KEY, sel.value); } catch { /* ignore */ }
+    if (state.data?.tournament) renderAll();
+  });
+}());
 
 $('week').addEventListener('change', async (e) => {
   if (state.me && isDirty() && !confirm('You have availability changes that aren’t saved. Switch weeks anyway?')) {

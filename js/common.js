@@ -1,6 +1,6 @@
-import { h, clear } from './dom.js?v=20261116b';
-import { computeStandings, pct } from './standings.js?v=20261116b';
-import { slotLabel, weekRangeLabel } from './slots.js?v=20261116b';
+import { h, clear } from './dom.js?v=20261116c';
+import { computeStandings, pct } from './standings.js?v=20261116c';
+import { slotLabel, weekRangeLabel } from './slots.js?v=20261116c';
 
 // Accessible tabs: arrow keys move between tabs, Enter/Space or click selects.
 export function setupTabs(onChange) {

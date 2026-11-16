@@ -1,14 +1,14 @@
-import { rpc } from './api.js?v=20261116b';
-import { h, clear, say, busy } from './dom.js?v=20261116b';
+import { rpc } from './api.js?v=20261116c';
+import { h, clear, say, busy } from './dom.js?v=20261116c';
 import {
   DAYS, HOURS, slotOf, dayLabel, dayName, hourLabel, slotLabel, nextMondayIso, weekRangeLabel,
-} from './slots.js?v=20261116b';
+} from './slots.js?v=20261116c';
 import {
   setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings, isRoundRobin,
-} from './common.js?v=20261116b';
-import { computeStandings } from './standings.js?v=20261116b';
-import { pairRound, overlapHours, suggestedRounds } from './swiss.js?v=20261116b';
-import { roundRobinSchedule, roundRobinRoundCount } from './roundrobin.js?v=20261116b';
+} from './common.js?v=20261116c';
+import { computeStandings } from './standings.js?v=20261116c';
+import { pairRound, overlapHours, suggestedRounds } from './swiss.js?v=20261116c';
+import { roundRobinSchedule, roundRobinRoundCount } from './roundrobin.js?v=20261116c';
 
 const KEY = 'mtg-organizer';
 const $ = (id) => document.getElementById(id);
@@ -182,7 +182,7 @@ function newWeekForm() {
     h('label', { for: 'nw-start', text: 'First day of the week' }), start,
     h('label', { for: 'nw-format', text: 'Tournament style' }), format,
     h('label', { for: 'nw-rounds', text: 'Number of rounds' }), rounds, roundsNote,
-    h('label', { for: 'nw-gday', text: 'Group session day' }), gDay,
+    h('label', { for: 'nw-gday', text: 'Group session day (Pacific Time)' }), gDay,
     h('div', { class: 'row' },
       h('div', { class: 'grow' }, h('label', { for: 'nw-gstart', text: 'Starts' }), gStart),
       h('div', { class: 'grow' }, h('label', { for: 'nw-gend', text: 'Ends' }), gEnd)),
@@ -415,7 +415,7 @@ function roundRobinCard() {
     });
     card.append(h('details', { style: 'margin-top:12px' },
       h('summary', { text: 'Change the schedule' }),
-      h('label', { for: 'rr-deadline', text: 'Play all matches by' }),
+      h('label', { for: 'rr-deadline', text: 'Play all matches by (Pacific Time)' }),
       h('div', { class: 'row' }, h('div', { class: 'grow' }, dl), saveDl),
       h('p', { class: 'small muted', text: 'Adding or dropping a player after the schedule is posted means deleting it and making a new one. Results already entered would be lost, so do it early.' }),
       del));
@@ -471,7 +471,7 @@ function rrPreviewBlock(status) {
       try { await reload(); } catch { /* ignore */ }
     }
   });
-  wrap.append(h('label', { for: 'new-deadline', text: 'Play all matches by' }), dl,
+  wrap.append(h('label', { for: 'new-deadline', text: 'Play all matches by (Pacific Time)' }), dl,
     h('div', { class: 'row', style: 'margin-top:12px' }, post, cancel));
   return wrap;
 }
@@ -549,7 +549,7 @@ function previewBlock(status) {
       say($('rounds-status'), `Round ${p.number} is posted. Players can now see their opponent and pick a time.`, 'ok');
     } catch { /* shown */ }
   });
-  wrap.append(h('label', { for: 'new-deadline', text: 'Play by' }), dl,
+  wrap.append(h('label', { for: 'new-deadline', text: 'Play by (Pacific Time)' }), dl,
     h('div', { class: 'row', style: 'margin-top:12px' }, post, cancel));
   return wrap;
 }
@@ -580,7 +580,7 @@ function adminControls(m) {
       h('div', { class: 'grow' }, sel(ids.b, `${n2} games`, 2, m.p2_wins)),
       h('div', { class: 'grow' }, sel(ids.d, 'Draws', 1, m.p1_wins == null ? null : m.draws))),
     h('div', { class: 'row', style: 'margin-top:8px' }, save, clearBtn),
-    h('label', { for: ids.t, text: 'Match time' }),
+    h('label', { for: ids.t, text: 'Match time (Pacific Time)' }),
     h('div', { class: 'row' }, h('div', { class: 'grow' }, timeSel), saveTime),
     status);
   const val = (id) => box.querySelector(`#${CSS.escape(id)}`).value;
@@ -661,7 +661,7 @@ function tournamentSettingsCard() {
     h('label', { for: 'ts-name', text: 'Name' }), name,
     h('label', { for: 'ts-format', text: 'Tournament style' }), format, formatNote,
     h('label', { for: 'ts-rounds', text: 'Number of rounds' }), rounds,
-    h('label', { for: 'ts-gday', text: 'Group session day' }), gDay,
+    h('label', { for: 'ts-gday', text: 'Group session day (Pacific Time)' }), gDay,
     h('div', { class: 'row' },
       h('div', { class: 'grow' }, h('label', { for: 'ts-gstart', text: 'Starts' }), gStart),
       h('div', { class: 'grow' }, h('label', { for: 'ts-gend', text: 'Ends' }), gEnd)),

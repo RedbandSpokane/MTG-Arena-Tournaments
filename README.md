@@ -55,8 +55,12 @@ Magic events.
   locks that player out for 15 minutes.
 - `js/config.js` holds the database address and its publishable key. That key
   is meant to be public.
-- Times are in Pacific Time. Each hour of the week is stored as a number:
-  `day * 24 + hour`, where day 0 is the week's first day.
+- Times are stored in Pacific Time. Each hour of the week is stored as a
+  number: `day * 24 + hour`, where day 0 is the week's first day.
+- Players pick their own time zone at the top of the player page (it's
+  remembered on their device and guessed from the device the first time).
+  The availability grid, suggested times, and deadlines all show in that
+  zone. The organizer page always shows Pacific Time.
 
 | File | What it does |
 | --- | --- |

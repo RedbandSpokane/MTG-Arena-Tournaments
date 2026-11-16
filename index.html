@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261116b">
-<script type="module" src="js/app.js?v=20261116b"></script>
+<link rel="stylesheet" href="css/style.css?v=20261116c">
+<script type="module" src="js/app.js?v=20261116c"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
@@ -22,8 +22,10 @@
 <main id="main" tabindex="-1">
   <div class="card">
     <label for="week">Tournament week</label>
-    <select id="week" aria-describedby="week-note"></select>
-    <p id="week-note" class="small muted" style="margin:8px 0 0">All times are Pacific Time.</p>
+    <select id="week"></select>
+    <label for="tz">Your time zone</label>
+    <select id="tz" aria-describedby="tz-note"></select>
+    <p id="tz-note" class="small muted" style="margin:8px 0 0">Every time on this site shows in the zone you pick, so you and your opponent can be in different places.</p>
   </div>
 
   <div class="tabs" role="tablist" aria-label="Sections">

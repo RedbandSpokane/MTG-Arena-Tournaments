@@ -1,4 +1,4 @@
-import { dayOf, hourOf } from './slots.js?v=20261116b';
+import { dayOf, hourOf } from './slots.js?v=20261116c';
 
 export function inGroupSession(slot, t) {
   if (!t || t.group_day == null || t.group_start_hour == null || t.group_end_hour == null) return false;

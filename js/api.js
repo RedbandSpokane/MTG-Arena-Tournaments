@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js?v=20261116b';
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js?v=20261116c';
 
 // Calls one of the database functions. Resolves to the function's JSON.
 // Throws an Error with a friendly message on network or server problems,
