@@ -1,12 +1,12 @@
-import { rpc } from './api.js';
-import { h, clear, say, busy } from './dom.js';
+import { rpc } from './api.js?v=20261116b';
+import { h, clear, say, busy } from './dom.js?v=20261116b';
 import {
   DAYS, HOURS, slotOf, dayLabel, hourLabel, hourRangeLabel, slotLabel, nowSlot,
-} from './slots.js';
-import { suggestTimes, sharedSlots, inGroupSession, groupSessionSlots } from './schedule.js';
+} from './slots.js?v=20261116b';
+import { suggestTimes, sharedSlots, inGroupSession, groupSessionSlots } from './schedule.js?v=20261116b';
 import {
   setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings, isRoundRobin, formatHelp,
-} from './common.js';
+} from './common.js?v=20261116b';
 
 const SESSION_KEY = 'mtg-player';
 

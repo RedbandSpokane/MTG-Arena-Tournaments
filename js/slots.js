@@ -1,4 +1,4 @@
-import { FIRST_HOUR, LAST_HOUR, TIME_ZONE } from './config.js';
+import { FIRST_HOUR, LAST_HOUR, TIME_ZONE } from './config.js?v=20261116b';
 
 // A "slot" is one hour of the tournament week: day_index * 24 + hour.
 // Day 0 is the tournament's week_start date. Hours are Pacific Time.

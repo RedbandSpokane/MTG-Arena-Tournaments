@@ -1,14 +1,14 @@
-import { rpc } from './api.js';
-import { h, clear, say, busy } from './dom.js';
+import { rpc } from './api.js?v=20261116b';
+import { h, clear, say, busy } from './dom.js?v=20261116b';
 import {
   DAYS, HOURS, slotOf, dayLabel, dayName, hourLabel, slotLabel, nextMondayIso, weekRangeLabel,
-} from './slots.js';
+} from './slots.js?v=20261116b';
 import {
   setupTabs, weekOptionLabel, namesById, renderPairings, renderStandings, isRoundRobin,
-} from './common.js';
-import { computeStandings } from './standings.js';
-import { pairRound, overlapHours, suggestedRounds } from './swiss.js';
-import { roundRobinSchedule, roundRobinRoundCount } from './roundrobin.js';
+} from './common.js?v=20261116b';
+import { computeStandings } from './standings.js?v=20261116b';
+import { pairRound, overlapHours, suggestedRounds } from './swiss.js?v=20261116b';
+import { roundRobinSchedule, roundRobinRoundCount } from './roundrobin.js?v=20261116b';
 
 const KEY = 'mtg-organizer';
 const $ = (id) => document.getElementById(id);
